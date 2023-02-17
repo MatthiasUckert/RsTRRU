@@ -1,5 +1,6 @@
 library(shiny)
 library(dplyr)
+library(shinyWidgets)
 
 # Define the u-shaped curve function
 u_shape <- function(x) {
@@ -96,14 +97,18 @@ ui <- fluidPage(
     ),
     mainPanel(
       HTML("<h4>Transparancy-Outcome Curve</h4>"),
-      sliderInput("slider", NULL, -5, 5, 0, .1, width = "100%", ),
-      plotOutput("plot", height = "600px", hover = "plot_hover", click = "plot_click"),
+      sliderInput("slider", NULL, -5, 5, 0, .1, width = "100%"),
+      splitLayout(
+        plotOutput("plot0", height = "600px", hover = "plot_hover", click = "plot_click"),
+        plotOutput("plot1", height = "600px", hover = "plot_hover", click = "plot_click")
+      ),
+
       br(),
       tags$div(
         class = "row",
         style = "text-align:center;",
         verbatimTextOutput("point_coords")
-      )
+      ),
     )
   ),
   tags$head(tags$style(HTML("
@@ -132,7 +137,7 @@ server <- function(input, output, session) {
 
 
   # Define the plot
-  output$plot <- renderPlot({
+  output$plot0 <- renderPlot({
     # Plot the u-shaped curve
     x <- seq(-5, 5, length.out = 100)
     y <- u_shape(x)
@@ -144,6 +149,7 @@ server <- function(input, output, session) {
     # Add the point
     points(point$x, point$y, pch = 21, bg = point_fill, col = point_color, cex = point_size)
   })
+  
 
   # Update the point when the mouse is moved
   observeEvent(input$plot_click, {
@@ -169,7 +175,7 @@ server <- function(input, output, session) {
 
   # Display the coordinates of the point
   output$point_coords <- renderText({
-    text_ <- case_when(
+    text_ <- dplyr::case_when(
       point$x <= -5 ~ "Are you sure you study transparancy? :-D",
       point$x <= -2.5 ~ "Your project studies a setting where we have limited transparancy and in turn a limited outcome",
       point$x > -.5 & point$x < .5 ~ "Congratulation the transparancy within your project achieves the highest outcome",
@@ -183,7 +189,7 @@ server <- function(input, output, session) {
   })
 
   output$choice <- renderText({
-    case_when(
+    dplyr::case_when(
       input$group_your_project == input$group_rate_project ~ "You want to rate your own project",
       input$group_your_project != input$group_rate_project ~ "Are you sure you want to rate another project?"
     )
@@ -207,6 +213,47 @@ server <- function(input, output, session) {
   output$text_rate_project <- renderUI({
     h4(names_pr[names(names_pr) == input$group_rate_project])
   }) 
+  
+  observeEvent(input$save_button, {
+    tab_ <- tibble::tibble(
+      time = Sys.time(),
+      from = input$group_your_project,
+      to = input$group_rate_project,
+      xval = point$x
+    )
+    
+    path_ <- "../2_output/response.fst"
+    if (!file.exists(path_)) {
+      out_ <- tab_
+      fst::write_fst(out_, path_)
+    } else {
+      out_ <- dplyr::bind_rows(fst::read_fst(path_), tab_)
+      fst::write_fst(out_, path_)
+    }
+    
+    output$plot1 <- renderPlot({
+      # Plot the u-shaped curve
+      x <- seq(-5, 5, length.out = 100)
+      y <- u_shape(x)
+      plot(x, y,
+           type = "l", xlim = c(-5, 5), ylim = c(-25, 0), xlab = "Transparancy", ylab = "Outcome",
+           xaxt = "n", yaxt = "n"
+      )
+      if (file.exists(path_)) {
+        tab_ <- fst::read_fst(path_)
+        resx <- tab_$xval
+        resy <- u_shape(resx)
+        points(resx, resy, pch = 21, bg = point_fill, col = "blue", cex = 2)
+      }
+      
+    })
+    
+  })
+  
+  # Define the plot
+
+  
+  
 }
 
 # Run the Shiny app
