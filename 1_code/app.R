@@ -4,66 +4,16 @@ library(shinyWidgets)
 
 # Define the u-shaped curve function
 u_shape <- function(x) {
-  y <- -x^2
-  return(y)
+  -x^2
 }
 
-choice <- c(
-  "A01", "A02", "A03", "A04", "A05",
-  "A06", "A07", "A08", "A09", "B01", "B02",
-  "B03", "B04", "B05", "B06", "B07",
-  "B08", "B09", "B10", "C01", "C02", "C03"
-)
+filter_pr_list <- function(.tab, .id, .col) {
+  .tab[[.col]][.tab$id == .id]
+} 
 
-links <- c(
-  "A01" = "https://www.accounting-for-transparency.de/projects/determinants-of-mandatory-disclosure/",
-  "A02" = "https://www.accounting-for-transparency.de/projects/transparency-effects-of-organizational-innovations/",
-  "A03" = "https://www.accounting-for-transparency.de/projects/determinants-of-textual-transparency/",
-  "A04" = "https://www.accounting-for-transparency.de/projects/accounting-for-investments-in-operating-assets/",
-  "A05" = "https://www.accounting-for-transparency.de/projects/accounting-for-tax-complexity/",
-  "A06" = "https://www.accounting-for-transparency.de/projects/context-based-disclosure-incentives/",
-  "A07" = "https://www.accounting-for-transparency.de/projects/ambiguity-learning-and-the-diffusion-of-reporting-practices/",
-  "A08" = "https://www.accounting-for-transparency.de/projects/standardization-of-accounting-language-in-financial-disclosures/",
-  "A09" = "https://www.accounting-for-transparency.de/projects/voluntary-disclosure/",
-  "B01" = "https://www.accounting-for-transparency.de/projects/investment-effects-of-taxation/",
-  "B02" = "https://www.accounting-for-transparency.de/projects/private-firm-transparency/",
-  "B03" = "https://www.accounting-for-transparency.de/projects/transparency-regulation-and-organizational-design/",
-  "B04" = "https://www.accounting-for-transparency.de/projects/real-effects-of-transparency/",
-  "B05" = "https://www.accounting-for-transparency.de/projects/transparency-and-the-equity-market/",
-  "B06" = "https://www.accounting-for-transparency.de/projects/transparency-and-transfer-prices/",
-  "B07" = "https://www.accounting-for-transparency.de/projects/costs-and-benefits-of-tax-transparency/",
-  "B08" = "https://www.accounting-for-transparency.de/projects/tax-burden-transparency/",
-  "B09" = "https://www.accounting-for-transparency.de/projects/transparency-and-the-debt-market/",
-  "B10" = "https://www.accounting-for-transparency.de/projects/corporate-transparency-unstructured-soft-information-gossip-and-fake-news/",
-  "C01" = "https://www.accounting-for-transparency.de/projects/german-business-panel/",
-  "C02" = "https://www.accounting-for-transparency.de/projects/open-science-data-center/",
-  "C03" = "https://www.accounting-for-transparency.de/projects/communicating-transparency-public-relations/"
-)
+tab_pr <- openxlsx::read.xlsx("../0_data/projects.xlsx")
 
-names_pr <- c(
-  "A01" = "Determinants of Mandatory Disclosure",
-  "A02" = "Transparency Effects of Organizational Innovations",
-  "A03" = "Determinants of Textual Transparency",
-  "A04" = "Accounting for Investments in Operating Assets",
-  "A05" = "Accounting for Tax Complexity",
-  "A06" = "Context-Based Disclosure Incentives",
-  "A07" = "Ambiguity, Learning, and the Diffusion of Reporting Practices",
-  "A08" = "Standardization of Accounting Language in Financial Disclosures",
-  "A09" = "Voluntary Disclosure",
-  "B01" = "Investment Effects of Taxation",
-  "B02" = "Private Firm Transparency",
-  "B03" = "Transparency Regulation and Organizational Design",
-  "B04" = "Real Effects of Transparency",
-  "B05" = "Transparency and the Equity Market",
-  "B06" = "Transparency and Transfer Prices",
-  "B07" = "Costs and Benefits of Tax Transparency",
-  "B08" = "Tax Burden Transparency",
-  "B09" = "Transparency and the Debt Market",
-  "B10" = "Corporate Transparency: Unstructured Soft Information, Gossip, and Fake News",
-  "C01" = "German Business Panel",
-  "C02" = "Open Science Data Center",
-  "C03" = "Communicating Transparency"
-)
+
 
 # Define the Shiny UI
 ui <- fluidPage(
@@ -78,7 +28,7 @@ ui <- fluidPage(
       shinyWidgets::radioGroupButtons(
         inputId = "group_your_project",
         label = "Please choose your project",
-        choices = choice,
+        choices = sort(unique(tab_pr$id)),
         individual = TRUE
       ),
       htmlOutput("text_your_project"),
@@ -87,7 +37,7 @@ ui <- fluidPage(
       shinyWidgets::radioGroupButtons(
         inputId = "group_rate_project",
         label = "Please choose the project you want to rate",
-        choices = choice,
+        choices = sort(unique(tab_pr$id)),
         individual = TRUE
       ),
       htmlOutput("text_rate_project"),
@@ -197,21 +147,23 @@ server <- function(input, output, session) {
 
 
   output$link_your <- renderUI({
-    url <- a(paste("Link to: ", input$group_your_project), href = links[names(links) == input$group_your_project])
-    tagList("", url)
+    link_ <- filter_pr_list(tab_pr, input$group_your_project, "links")
+    url_ <- a(paste("Link to: ", input$group_your_project), href = link_)
+    tagList("", url_)
   })
 
   output$link_rate <- renderUI({
-    url <- a(paste("Link to: ", input$group_rate_project), href = links[names(links) == input$group_rate_project])
-    tagList("", url)
+    link_ <- filter_pr_list(tab_pr, input$group_rate_project, "links")
+    url_ <- a(paste("Link to: ", input$group_rate_project), href = link_)
+    tagList("", url_)
   })
 
   output$text_your_project <- renderUI({
-    h4(names_pr[names(names_pr) == input$group_your_project])
+    h4(filter_pr_list(tab_pr, input$group_your_project, "title"))
   }) 
 
   output$text_rate_project <- renderUI({
-    h4(names_pr[names(names_pr) == input$group_rate_project])
+    h4(filter_pr_list(tab_pr, input$group_rate_project, "title"))
   }) 
   
   observeEvent(input$save_button, {
