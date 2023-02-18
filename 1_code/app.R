@@ -12,7 +12,7 @@ filter_pr_list <- function(.tab, .id, .col) {
 } 
 
 tab_pr <- openxlsx::read.xlsx("../0_data/projects.xlsx")
-
+tab_cr <- openxlsx::read.xlsx("../0_data/credentials.xlsx")
 
 
 # Define the Shiny UI
@@ -22,21 +22,20 @@ ui <- fluidPage(
     sidebarPanel(
       HTML("<h4>Instructions:</h4>"),
       HTML("<p>Move the red point along the curve by clicking on the curve.</p>"),
+      splitLayout(
+        textInputIcon("name", "Username", placeholder = "Enter your credentials"),
+        textInputIcon("pw", "Password", placeholder = "Enter your password"),
+      ),
+      actionButton("login", "Log In"),
+      hr(),
+      verbatimTextOutput("pr_title"),
+      hr(),
       actionButton("save_button", "Save Response"),
       br(),
       br(),
       shinyWidgets::radioGroupButtons(
-        inputId = "group_your_project",
-        label = "Please choose your project",
-        choices = sort(unique(tab_pr$id)),
-        individual = TRUE
-      ),
-      htmlOutput("text_your_project"),
-      uiOutput("link_your"),
-      br(),
-      shinyWidgets::radioGroupButtons(
         inputId = "group_rate_project",
-        label = "Please choose the project you want to rate",
+        label = "Please choose the project you want to classify",
         choices = sort(unique(tab_pr$id)),
         individual = TRUE
       ),
@@ -86,6 +85,36 @@ server <- function(input, output, session) {
   point_fill <- "white"
 
 
+  observeEvent(input$login, {
+    has_user <- which(tab_cr$user == input$name)
+    has_user <- ifelse(length(has_user) == 0, 0L, has_user)
+    pw_correct <- ifelse(has_user == 0, FALSE, tab_cr$pw[has_user] == input$pw)
+    
+    if (pw_correct) {
+      prompt_ <- tab_pr %>%
+        dplyr::filter(id == tab_cr$id[has_user]) %>%
+        dplyr::mutate(tmp = paste0(
+          "You successfully logged into project: ", id, "\n",
+          title
+        )) %>%
+        dplyr::pull(tmp)
+    } else {
+      prompt_ <- ""
+    }
+    
+    output$pr_title <- renderText({
+      dplyr::case_when(
+        has_user == 0 ~ "Wrong Username",
+        !pw_correct ~ "Wrong Password",
+        pw_correct ~ prompt_
+        
+      )
+    })
+
+  })
+  
+  
+
   # Define the plot
   output$plot0 <- renderPlot({
     # Plot the u-shaped curve
@@ -93,7 +122,7 @@ server <- function(input, output, session) {
     y <- u_shape(x)
     plot(x, y,
       type = "l", xlim = c(-5, 5), ylim = c(-25, 0), xlab = "Transparancy", ylab = "Outcome",
-      xaxt = "n", yaxt = "n"
+      xaxt = "n", yaxt = "n", main = "Classify a Project"
     )
 
     # Add the point
@@ -145,19 +174,6 @@ server <- function(input, output, session) {
     )
   })
 
-
-  output$link_your <- renderUI({
-    link_ <- filter_pr_list(tab_pr, input$group_your_project, "links")
-    url_ <- a(paste("Link to: ", input$group_your_project), href = link_)
-    tagList("", url_)
-  })
-
-  output$link_rate <- renderUI({
-    link_ <- filter_pr_list(tab_pr, input$group_rate_project, "links")
-    url_ <- a(paste("Link to: ", input$group_rate_project), href = link_)
-    tagList("", url_)
-  })
-
   output$text_your_project <- renderUI({
     h4(filter_pr_list(tab_pr, input$group_your_project, "title"))
   }) 
@@ -165,6 +181,18 @@ server <- function(input, output, session) {
   output$text_rate_project <- renderUI({
     h4(filter_pr_list(tab_pr, input$group_rate_project, "title"))
   }) 
+  
+  
+  output$plot1 <- renderPlot({
+    # Plot the u-shaped curve
+    x <- seq(-5, 5, length.out = 100)
+    y <- u_shape(x)
+    plot(x, y,
+         type = "l", xlim = c(-5, 5), ylim = c(-25, 0), xlab = "Transparancy", ylab = "Outcome",
+         xaxt = "n", yaxt = "n", main = "Your Responses"
+    )
+  })
+  
   
   observeEvent(input$save_button, {
     tab_ <- tibble::tibble(
@@ -189,7 +217,7 @@ server <- function(input, output, session) {
       y <- u_shape(x)
       plot(x, y,
            type = "l", xlim = c(-5, 5), ylim = c(-25, 0), xlab = "Transparancy", ylab = "Outcome",
-           xaxt = "n", yaxt = "n"
+           xaxt = "n", yaxt = "n", main = "Your Responses"
       )
       if (file.exists(path_)) {
         tab_ <- fst::read_fst(path_)
