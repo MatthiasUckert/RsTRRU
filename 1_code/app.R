@@ -222,14 +222,7 @@ server <- function(input, output, session) {
     url_ <- a(input$rGB_rate, href = filter_project_list(tab_pr, input$rGB_rate, "link"))
     tagList("Link to Project:", url_)
   })
-  
 
-
-  
-  # Define the plot
-
-  
-  
 }
 
 # Run the Shiny app
